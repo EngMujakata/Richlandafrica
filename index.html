@@ -1428,7 +1428,7 @@
     const DRIVE_FOLDER_ID = '1FN1PDkoKE6So1UP0R-VSOIdPaS0Oav_W';
     
     let currentData = { catalog: [], chats: [], faq: [], orders: [], pendingOrders: [], processingOrders: [], completedOrders: [], users: [] };
-    let currentModal = null, currentOrderFilter = 'pending', currentChatPhone = '', currentOrder = null, uploadedImageUrl = '', uploadedFileId = '';
+    let currentModal = null, currentOrderFilter = 'pending', currentChatPhone = '', currentOrder = null, currentOrderGroup = [], uploadedImageUrl = '', uploadedFileId = '';
     let deferredPrompt, categoryList = [];
     
     function safeString(v) { return v === null || v === undefined ? '' : String(v).trim(); }
@@ -1535,7 +1535,6 @@
         uploadedImageUrl = ''; uploadedFileId = '';
     }
     
-    // Category dropdown handler
     function initCategoryHandlers() {
         const select = document.getElementById('productCategorySelect');
         const customContainer = document.getElementById('categoryCustomContainer');
@@ -1557,22 +1556,110 @@
         customInput.addEventListener('input', () => { hiddenCat.value = customInput.value.trim(); });
     }
     
-    // Render functions
+    function findOrderByNumber(orderNumber) {
+        let order = currentData.orders.find(o => String(o.orderNumber) === String(orderNumber));
+        if (!order) order = currentData.pendingOrders.find(o => String(o.orderNumber) === String(orderNumber));
+        if (!order) order = currentData.processingOrders.find(o => String(o.orderNumber) === String(orderNumber));
+        if (!order) order = currentData.completedOrders.find(o => String(o.orderNumber) === String(orderNumber));
+        return order;
+    }
+    
+    function getOrdersByGroup(orderNumber) {
+        return currentData.orders.filter(o => String(o.orderNumber) === String(orderNumber));
+    }
+    
     function renderCatalogTable() {
         const tbody = document.getElementById('catalogTable');
-        if (!currentData.catalog.length) { tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><i class="fas fa-box-open"></i><p>No products found.</p></td></tr>`; return; }
-        tbody.innerHTML = currentData.catalog.map(p => `<tr><td>${p.thumbnailUrl ? `<img src="${p.thumbnailUrl}" class="product-image-preview" onclick="event.stopPropagation()" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9IiNlMGU3ZWIiIHJ4PSI2Ii8+PHBhdGggZD0iTTIwIDIwTDMwIDMwTDM1IDI1TDM1IDQwSDI1VjMwTDIwIDI1VjIwWk0yMCAxNUMxOC4zNDQxIDE1IDE3IDE2LjM0NDEgMTcgMThDMTcgMTkuNjU1OSAxOC4zNDQxIDIxIDIwIDIxQzIxLjY1NTkgMjEgMjMgMTkuNjU1OSAyMyAxOEMyMyAxNi4zNDQxIDIxLjY1NTkgMTUgMjAgMTVaIiBmaWxsPSIjOTM5NDk4Ii8+PC9zdmc+Cg==';">` : '<img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9IiNlMGU3ZWIiIHJ4PSI2Ii8+PHBhdGggZD0iTTIwIDIwTDMwIDMwTDM1IDI1TDM1IDQwSDI1VjMwTDIwIDI1VjIwWk0yMCAxNUMxOC4zNDQxIDE1IDE3IDE2LjM0NDEgMTcgMThDMTcgMTkuNjU1OSAxOC4zNDQxIDIxIDIwIDIxQzIxLjY1NTkgMjEgMjMgMTkuNjU1OSAyMyAxOEMyMyAxNi4zNDQxIDIxLjY1NTkgMTUgMjAgMTVaIiBmaWxsPSIjOTM5NDk4Ii8+PC9zdmc+Cg==" class="product-image-preview">'}</td><td><strong>${escapeHtml(p.product)}</strong><br><small>${escapeHtml(p.description?.substring(0,50))}${p.description?.length>50?'...':''}</small></td><td><code>${escapeHtml(p.sku)}</code></td><td>$${parseFloat(p.price).toFixed(2)}</td><td>${escapeHtml(p.category)}</td><td><div class="action-buttons"><button class="action-btn edit-btn" onclick="openProductModalForEdit(${JSON.stringify(p).replace(/"/g, '&quot;')})"><i class="fas fa-edit"></i> Edit</button><button class="action-btn delete-btn" onclick="deleteProduct('${p.sku}')"><i class="fas fa-trash"></i> Delete</button></div></td></tr>`).join('');
+        if (!currentData.catalog.length) { tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><i class="fas fa-box-open"></i><p>No products found.</p>NonNull70</tr>`; return; }
+        tbody.innerHTML = currentData.catalog.map(p => `<tr>
+            <td>${p.thumbnailUrl ? `<img src="${p.thumbnailUrl}" class="product-image-preview" onclick="event.stopPropagation()" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9IiNlMGU3ZWIiIHJ4PSI2Ii8+PHBhdGggZD0iTTIwIDIwTDMwIDMwTDM1IDI1TDM1IDQwSDI1VjMwTDIwIDI1VjIwWk0yMCAxNUMxOC4zNDQxIDE1IDE3IDE2LjM0NDEgMTcgMThDMTcgMTkuNjU1OSAxOC4zNDQxIDIxIDIwIDIxQzIxLjY1NTkgMjEgMjMgMTkuNjU1OSAyMyAxOEMyMyAxNi4zNDQxIDIxLjY1NTkgMTUgMjAgMTVaIiBmaWxsPSIjOTM5NDk4Ii8+PC9zdmc+Cg==">` : '<img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9IiNlMGU3ZWIiIHJ4PSI2Ii8+PHBhdGggZD0iTTIwIDIwTDMwIDMwTDM1IDI1TDM1IDQwSDI1VjMwTDIwIDI1VjIwWk0yMCAxNUMxOC4zNDQxIDE1IDE3IDE2LjM0NDEgMTcgMThDMTcgMTkuNjU1OSAxOC4zNDQxIDIxIDIwIDIxQzIxLjY1NTkgMjEgMjMgMTkuNjU1OSAyMyAxOEMyMyAxNi4zNDQxIDIxLjY1NTkgMTUgMjAgMTVaIiBmaWxsPSIjOTM5NDk4Ii8+PC9zdmc+Cg==" class="product-image-preview">'}</td>
+            <td><strong>${escapeHtml(p.product)}</strong><br><small>${escapeHtml(p.description?.substring(0,50))}${p.description?.length>50?'...':''}</small></td>
+            <td><code>${escapeHtml(p.sku)}</code></td>
+            <td>$${parseFloat(p.price).toFixed(2)}</td>
+            <td>${escapeHtml(p.category)}</td>
+            <td><div class="action-buttons"><button class="action-btn edit-btn" onclick="openProductModalForEdit(${JSON.stringify(p).replace(/"/g, '&quot;')})"><i class="fas fa-edit"></i> Edit</button><button class="action-btn delete-btn" onclick="deleteProduct('${p.sku}')"><i class="fas fa-trash"></i> Delete</button></div></td>
+        </tr>`).join('');
         document.querySelectorAll('#catalogTable tr').forEach(row => row.addEventListener('click', (e) => { if(!e.target.closest('.action-btn')) addRowLoading(row); }));
     }
     
     window.openProductModalForEdit = (product) => { openProductModal(product); };
     
-    function renderChatsTable() { /* similar to original but condensed */ const tbody = document.getElementById('chatsTable'); if(!currentData.chats.length){ tbody.innerHTML='<tr><td colspan="5" class="empty-state">No chats</td></tr>'; return; } tbody.innerHTML = currentData.chats.map(c => `<tr><td><strong>${escapeHtml(c.phone)}</strong></td><td>${escapeHtml(c.lastMessage?.substring(0,50))}</td><td>${c.messageCount}</td><td>${c.lastTimestamp ? new Date(c.lastTimestamp).toLocaleDateString() : 'N/A'}</td><td><div class="action-buttons"><button class="action-btn view-btn" onclick="openChatThread('${c.phone}')">View</button>${cleanPhoneNumber(c.phone) ? `<a href="https://wa.me/${cleanPhoneNumber(c.phone)}?text=${encodeURIComponent('Hi this is Richland Africa...')}" target="_blank" class="action-btn whatsapp-btn">Chat</a>` : ''}</div></td></tr>`).join(''); }
-    function renderFaqTable() { const tbody = document.getElementById('faqTable'); if(!currentData.faq.length){ tbody.innerHTML='<tr><td colspan="3" class="empty-state">No FAQs</td></tr>'; return; } tbody.innerHTML = currentData.faq.map(f => `<tr><td>${escapeHtml(f.question)}</td><td><code>${escapeHtml(f.sku)}</code></td><td><div class="action-buttons"><button class="action-btn edit-btn" onclick="openFaqModalForEdit(${JSON.stringify(f).replace(/"/g, '&quot;')})">Edit</button><button class="action-btn delete-btn" onclick="deleteFaq('${f.sku}')">Delete</button></div></td></tr>`).join(''); }
-    function renderOrdersTable() { let orders = currentOrderFilter === 'pending' ? currentData.pendingOrders : currentOrderFilter === 'processing' ? currentData.processingOrders : currentData.completedOrders; const tbody = document.getElementById('ordersTable'); if(!orders.length){ tbody.innerHTML=`<tr><td colspan="6" class="empty-state">No ${currentOrderFilter} orders</td></tr>`; return; } tbody.innerHTML = orders.map(o => `<tr><td>${o.thumbnailUrl ? `<img src="${o.thumbnailUrl}" class="order-image-preview" onclick="event.stopPropagation()">` : '<img src="data:image/svg+xml;base64,..." class="order-image-preview">'}</td><td><strong>${escapeHtml(o.orderNumber)}</strong></td><td>${escapeHtml(o.phone)}</td><td>${o.dateTime ? new Date(o.dateTime).toLocaleDateString() : 'N/A'}</td><td><span class="status-badge status-${o.status === 'Processing' ? 'processing' : o.status === 'Completed' ? 'completed' : 'pending'}">${o.status}</span></td><td><div class="action-buttons"><button class="action-btn view-btn" onclick="openOrderDetails('${o.orderNumber}')">View</button></div></td></tr>`).join(''); }
-    function renderRecentOrders(orders) { const tbody = document.getElementById('recentOrders'); if(!orders.length){ tbody.innerHTML='<tr><td colspan="5" class="empty-state">No recent orders</td></tr>'; return; } tbody.innerHTML = orders.map(o => `<tr><td><strong>${escapeHtml(o.orderNumber)}</strong></td><td>${escapeHtml(o.phone)}</td><td>${o.dateTime ? new Date(o.dateTime).toLocaleDateString() : 'N/A'}</td><td><span class="status-badge status-${o.status === 'Processing' ? 'processing' : o.status === 'Completed' ? 'completed' : 'pending'}">${o.status}</span></td><td><button class="action-btn view-btn" onclick="openOrderDetails('${o.orderNumber}')">View</button></td></tr>`).join(''); }
+    function renderChatsTable() {
+        const tbody = document.getElementById('chatsTable');
+        if(!currentData.chats.length){ tbody.innerHTML='<tr><td colspan="5" class="empty-state"><i class="fas fa-comments"></i><p>No chats found.</p></td></tr>'; return; }
+        tbody.innerHTML = currentData.chats.map(c => `<tr>
+            <td><strong>${escapeHtml(c.phone)}</strong></td>
+            <td>${escapeHtml(c.lastMessage?.substring(0,50))}</td>
+            <td>${c.messageCount}</td>
+            <td>${c.lastTimestamp ? new Date(c.lastTimestamp).toLocaleDateString() : 'N/A'}</td>
+            <td><div class="action-buttons"><button class="action-btn view-btn" onclick="openChatThread('${c.phone}')"><i class="fas fa-eye"></i> View</button>${cleanPhoneNumber(c.phone) ? `<a href="https://wa.me/${cleanPhoneNumber(c.phone)}?text=${encodeURIComponent('Hi this is Richland Africa...')}" target="_blank" class="action-btn whatsapp-btn"><i class="fab fa-whatsapp"></i> Chat</a>` : ''}</div></td>
+        </tr>`).join('');
+    }
+    
+    function renderFaqTable() {
+        const tbody = document.getElementById('faqTable');
+        if(!currentData.faq.length){ tbody.innerHTML='<tr><td colspan="3" class="empty-state"><i class="fas fa-question-circle"></i><p>No FAQs found.</p></td></tr>'; return; }
+        tbody.innerHTML = currentData.faq.map(f => `<tr>
+            <td>${escapeHtml(f.question)}</td>
+            <td><code>${escapeHtml(f.sku)}</code></td>
+            <td><div class="action-buttons"><button class="action-btn edit-btn" onclick="openFaqModalForEdit(${JSON.stringify(f).replace(/"/g, '&quot;')})"><i class="fas fa-edit"></i> Edit</button><button class="action-btn delete-btn" onclick="deleteFaq('${f.sku}')"><i class="fas fa-trash"></i> Delete</button></div></td>
+        </tr>`).join('');
+    }
+    
+    function renderOrdersTable() {
+        let orders = currentOrderFilter === 'pending' ? currentData.pendingOrders : 
+                     currentOrderFilter === 'processing' ? currentData.processingOrders : 
+                     currentData.completedOrders;
+        const tbody = document.getElementById('ordersTable');
+        
+        if (!orders || !orders.length) {
+            tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><i class="fas fa-box-open"></i><p>No ${currentOrderFilter} orders</p>NonNull70</tr>`;
+            return;
+        }
+        
+        tbody.innerHTML = orders.map(o => {
+            const itemCount = getOrdersByGroup(o.orderNumber).length;
+            return `
+            <tr onclick="openOrderDetails('${o.orderNumber}')" style="cursor: pointer;">
+                <td><div style="width: 50px; height: 50px; background: #f3f4f6; border-radius: 8px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-shopping-bag" style="color: #6b7280;"></i></div></td>
+                <td><strong>${escapeHtml(String(o.orderNumber))}</strong><br><small>${itemCount} item(s)</small></td>
+                <td>${escapeHtml(o.phone || o.customerName || '')}</td>
+                <td>${o.dateTime ? new Date(o.dateTime).toLocaleDateString() : 'N/A'}</td>
+                <td><span class="status-badge status-${o.status === 'Processing' ? 'processing' : o.status === 'Completed' ? 'completed' : 'pending'}">${o.status || 'Pending'}</span></td>
+                <td><button class="action-btn view-btn" onclick="event.stopPropagation(); openOrderDetails('${o.orderNumber}')"><i class="fas fa-eye"></i> View</button></td>
+            </tr>`;
+        }).join('');
+    }
+    
+    function renderRecentOrders(orders) {
+        const tbody = document.getElementById('recentOrders');
+        if (!orders || !orders.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No recent orders</td></tr>';
+            return;
+        }
+        const uniqueOrders = [];
+        const seen = new Set();
+        orders.forEach(o => {
+            if (!seen.has(o.orderNumber)) {
+                seen.add(o.orderNumber);
+                uniqueOrders.push(o);
+            }
+        });
+        tbody.innerHTML = uniqueOrders.slice(0, 5).map(o => {
+            const itemCount = getOrdersByGroup(o.orderNumber).length;
+            return `
+            <tr onclick="openOrderDetails('${o.orderNumber}')" style="cursor: pointer;">
+                <td><strong>${escapeHtml(String(o.orderNumber))}</strong><br><small>${itemCount} item(s)</small></td>
+                <td>${escapeHtml(o.phone || o.customerName || '')}</td>
+                <td>${o.dateTime ? new Date(o.dateTime).toLocaleDateString() : 'N/A'}</td>
+                <td><span class="status-badge status-${o.status === 'Processing' ? 'processing' : o.status === 'Completed' ? 'completed' : 'pending'}">${o.status || 'Pending'}</span></td>
+                <td><button class="action-btn view-btn" onclick="event.stopPropagation(); openOrderDetails('${o.orderNumber}')"><i class="fas fa-eye"></i> View</button></td>
+            </tr>`;
+        }).join('');
+    }
     
     async function loadDashboardData() { showLoading('dashboard'); const [cat, chats, faq, ord] = await Promise.all([fetchData('getcatalog'), fetchData('getchats'), fetchData('getfaq'), fetchData('getorders')]); if(cat?.success) { currentData.catalog = cat.catalog || []; document.getElementById('catalogCount').textContent = currentData.catalog.length; } if(chats?.success) { currentData.chats = chats.chats || []; document.getElementById('chatsCount').textContent = currentData.chats.length; } if(faq?.success) { currentData.faq = faq.faqs || []; document.getElementById('faqCount').textContent = currentData.faq.length; } if(ord?.success) { currentData.orders = ord.orders || []; currentData.pendingOrders = ord.pending || []; currentData.processingOrders = ord.processing || []; currentData.completedOrders = ord.completed || []; document.getElementById('ordersCount').textContent = ord.pending?.length || 0; renderRecentOrders(ord.pending?.slice(0,5)||[]); } hideLoading('dashboard'); await populateCategoryDropdown(); }
+    
     async function loadSectionData(section) { showLoading(section); if(section === 'catalog'){ const r = await fetchData('getcatalog'); if(r?.success){ currentData.catalog = r.catalog || []; renderCatalogTable(); } } else if(section === 'chats'){ const r = await fetchData('getchats'); if(r?.success){ currentData.chats = r.chats || []; renderChatsTable(); } } else if(section === 'faq'){ const r = await fetchData('getfaq'); if(r?.success){ currentData.faq = r.faqs || []; renderFaqTable(); } } else if(section === 'orders'){ const r = await fetchData('getorders'); if(r?.success){ currentData.orders = r.orders || []; currentData.pendingOrders = r.pending || []; currentData.processingOrders = r.processing || []; currentData.completedOrders = r.completed || []; renderOrdersTable(); } } hideLoading(section); }
     
     async function openProductModal(product = null) {
@@ -1637,14 +1724,100 @@
     async function deleteFaq(sku) { if(!confirm('Delete FAQ?')) return; const r = await fetchData('delfaq', { sku }); if(r?.success){ showToast('Deleted','success'); loadSectionData('faq'); loadDashboardData(); } else showToast(r?.message || 'Delete failed','error'); }
     function openFaqModal(faq=null){ const modal = document.getElementById('faqModal'); if(faq?.sku){ document.getElementById('faqModalTitle').innerText='Edit FAQ'; document.getElementById('faqSubmitText').innerText='Update FAQ'; document.getElementById('faqQuestion').value=faq.question||''; document.getElementById('faqSkuInput').value=faq.sku; document.getElementById('faqSku').value=faq.sku; document.getElementById('faqSkuInput').readOnly=true; } else { document.getElementById('faqModalTitle').innerText='Add FAQ'; document.getElementById('faqSubmitText').innerText='Add FAQ'; document.getElementById('faqForm').reset(); document.getElementById('faqSku').value=''; document.getElementById('faqSkuInput').readOnly=false; } modal.classList.add('active'); }
     async function handleFaqSubmit(e){ e.preventDefault(); const faq={ question: document.getElementById('faqQuestion').value, sku: document.getElementById('faqSkuInput').value||undefined }; if(!faq.question){ showToast('Question required','error'); return; } const isEdit=!!document.getElementById('faqSku').value; const action=isEdit?'edfaq':'adfaq'; try{ const btn=e.target.querySelector('button[type="submit"]'); const orig=btn.innerHTML; btn.innerHTML='<div class="loading"></div>'; btn.disabled=true; const r=await fetchData(action,faq); if(r?.success){ showToast(r.message||'Success','success'); closeModal('faqModal'); loadSectionData('faq'); loadDashboardData(); } else showToast(r?.message||'Failed','error'); btn.innerHTML=orig; btn.disabled=false; } catch(err){ showToast('Error','error'); } }
-    async function openChatThread(phone){ const res=await fetchData('getchatthread',{phone}); if(res?.success){ document.getElementById('chatPhoneNumber').innerText=phone; currentChatPhone=phone; const container=document.getElementById('chatThread'); container.innerHTML=(res.messages||[]).map(m=>`<div class="chat-message ${m.bot?'bot':'user'}"><div class="chat-bubble">${m.bot||m.message}<div class="chat-time">${new Date(m.timestamp).toLocaleString()}</div></div></div>`).join(''); document.getElementById('chatThreadModal').classList.add('active'); } else showToast('Error loading chat','error'); }
+    async function openChatThread(phone){ const res=await fetchData('getchatthread',{phone}); if(res?.success){ document.getElementById('chatPhoneNumber').innerText=phone; currentChatPhone=phone; const container=document.getElementById('chatThread'); container.innerHTML=(res.messages||[]).map(m=>`<div class="chat-message ${m.bot?'bot':'user'}"><div class="chat-bubble">${escapeHtml(m.bot||m.message)}<div class="chat-time">${new Date(m.timestamp).toLocaleString()}</div></div></div>`).join(''); document.getElementById('chatThreadModal').classList.add('active'); } else showToast('Error loading chat','error'); }
     function sendFollowUpMessage(){ const msg=document.getElementById('whatsappMessage').value.trim(); if(!msg) return; const phone=cleanPhoneNumber(currentChatPhone); if(phone) window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank'); }
-    async function openOrderDetails(orderNumber){ let order=currentData.orders.find(o=>o.orderNumber===orderNumber); if(!order){ const r=await fetchData('getorders'); if(r?.success){ currentData.orders=r.orders||[]; order=currentData.orders.find(o=>o.orderNumber===orderNumber); } } if(!order){ showToast('Order not found','error'); return; } currentOrder=order; document.getElementById('orderNumberTitle').innerText=orderNumber; document.getElementById('orderNumberDetail').innerText=order.orderNumber; document.getElementById('orderPhone').innerText=order.phone||''; document.getElementById('orderDateTime').innerText=order.dateTime?new Date(order.dateTime).toLocaleString():'N/A'; document.getElementById('orderDescription').innerText=order.description||'No description'; const badge=document.getElementById('orderStatusBadge'); badge.innerText=order.status||'Pending'; badge.className=`status-badge status-${order.status==='Processing'?'processing':order.status==='Completed'?'completed':'pending'}`; const img=document.getElementById('orderImage'); const noImg=document.getElementById('noOrderImage'); if(order.image){ img.src=order.image; img.style.display='block'; noImg.style.display='none'; } else { img.style.display='none'; noImg.style.display='block'; } let defMsg=''; if(order.status==='Processing') defMsg=`Hi, your order ${order.orderNumber} is being processed...`; else if(order.status==='Completed') defMsg=`Good news! Order ${order.orderNumber} is ready for collection.`; else defMsg=`Hi, your order ${order.orderNumber} has been received.`; document.getElementById('orderWhatsappMessage').value=defMsg; const actionsDiv=document.getElementById('orderActions'); actionsDiv.innerHTML=''; if(order.status!=='Completed'){ if(order.status!=='Processing'){ const pb=document.createElement('button'); pb.className='btn btn-warning'; pb.innerHTML='<i class="fas fa-cog"></i> Mark Processing'; pb.onclick=()=>processOrder(order.orderNumber); actionsDiv.appendChild(pb); } const cb=document.createElement('button'); cb.className='btn btn-success'; cb.innerHTML='<i class="fas fa-check-circle"></i> Complete Order'; cb.onclick=()=>completeOrder(order.orderNumber); actionsDiv.appendChild(cb); } document.getElementById('orderDetailsModal').classList.add('active'); }
-    async function processOrder(orderNumber){ const r=await fetchData('processorder',{orderNumber}); if(r?.success){ showToast('Order marked processing','success'); closeModal('orderDetailsModal'); loadSectionData('orders'); loadDashboardData(); } else showToast(r?.message||'Failed','error'); }
-    async function completeOrder(orderNumber){ const r=await fetchData('completeorder',{orderNumber}); if(r?.success){ showToast('Order completed','success'); closeModal('orderDetailsModal'); loadSectionData('orders'); loadDashboardData(); } else showToast(r?.message||'Failed','error'); }
-    function sendOrderWhatsApp(){ const msg=document.getElementById('orderWhatsappMessage').value.trim(); const phone=cleanPhoneNumber(currentOrder?.phone); if(phone && msg) window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank'); }
+    
+    async function openOrderDetails(orderNumber) {
+        console.log('Looking for order:', orderNumber);
+        
+        let order = findOrderByNumber(orderNumber);
+        
+        if (!order) {
+            console.log('Order not found in cache, fetching fresh data...');
+            const r = await fetchData('getorders');
+            if (r?.success) {
+                currentData.orders = r.orders || [];
+                currentData.pendingOrders = r.pending || [];
+                currentData.processingOrders = r.processing || [];
+                currentData.completedOrders = r.completed || [];
+                order = findOrderByNumber(orderNumber);
+            }
+        }
+        
+        if (!order) {
+            console.error('Order not found:', orderNumber);
+            showToast('Order not found. Please refresh and try again.', 'error');
+            return;
+        }
+        
+        const orderGroup = getOrdersByGroup(order.orderNumber);
+        currentOrderGroup = orderGroup;
+        currentOrder = order;
+        
+        const totalAmount = orderGroup.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
+        const productList = orderGroup.map(item => `${item.product} ($${item.price})`).join('\n• ');
+        
+        document.getElementById('orderNumberTitle').innerText = order.orderNumber;
+        document.getElementById('orderNumberDetail').innerText = order.orderNumber;
+        document.getElementById('orderPhone').innerHTML = `<a href="tel:${order.phone}">${order.phone}</a>`;
+        document.getElementById('orderDateTime').innerText = order.dateTime ? new Date(order.dateTime).toLocaleString() : 'N/A';
+        
+        const description = `Customer: ${order.customerName || 'N/A'}\nPhone: ${order.phone || 'N/A'}\nAddress: ${order.address || 'N/A'}\n\nItems (${orderGroup.length}):\n• ${productList}\n\nTotal: $${totalAmount.toFixed(2)}`;
+        document.getElementById('orderDescription').innerText = description;
+        
+        const status = order.status || 'Pending';
+        const badge = document.getElementById('orderStatusBadge');
+        badge.innerText = status;
+        badge.className = `status-badge status-${status.toLowerCase() === 'processing' ? 'processing' : status.toLowerCase() === 'completed' ? 'completed' : 'pending'}`;
+        
+        const img = document.getElementById('orderImage');
+        const noImg = document.getElementById('noOrderImage');
+        img.style.display = 'none';
+        noImg.style.display = 'block';
+        noImg.innerHTML = `<i class="fas fa-receipt"></i><p>Order #${order.orderNumber}</p><small>${orderGroup.length} item(s) | Total: $${totalAmount.toFixed(2)}</small>`;
+        
+        let defMsg = '';
+        if (status.toLowerCase() === 'processing') {
+            defMsg = `Hi ${order.customerName || 'there'}, we are processing your order #${order.orderNumber} and will deliver it to ${order.address || 'your address'} shortly.`;
+        } else if (status.toLowerCase() === 'completed') {
+            defMsg = `Hi ${order.customerName || 'there'}, good news! Your order #${order.orderNumber} is ready. We are delivering it to ${order.address || 'your address'} shortly.`;
+        } else {
+            defMsg = `Hi ${order.customerName || 'there'}, we've received your order #${order.orderNumber}. We are preparing it for delivery to ${order.address || 'your address'}. We'll notify you once it's on the way.`;
+        }
+        document.getElementById('orderWhatsappMessage').value = defMsg;
+        
+        const actionsDiv = document.getElementById('orderActions');
+        actionsDiv.innerHTML = '';
+        
+        if (status.toLowerCase() !== 'completed') {
+            if (status.toLowerCase() !== 'processing') {
+                const pb = document.createElement('button');
+                pb.className = 'btn btn-warning';
+                pb.innerHTML = '<i class="fas fa-cog"></i> Mark Processing';
+                pb.onclick = () => processOrder(order.orderNumber);
+                actionsDiv.appendChild(pb);
+            }
+            const cb = document.createElement('button');
+            cb.className = 'btn btn-success';
+            cb.innerHTML = '<i class="fas fa-check-circle"></i> Complete Order';
+            cb.onclick = () => completeOrder(order.orderNumber);
+            actionsDiv.appendChild(cb);
+        }
+        
+        document.getElementById('orderDetailsModal').classList.add('active');
+    }
+    
+    async function processOrder(orderNumber){ const r = await fetchData('processorder',{orderNumber}); if(r?.success){ showToast('Order marked processing','success'); closeModal('orderDetailsModal'); loadSectionData('orders'); loadDashboardData(); } else showToast(r?.message||'Failed','error'); }
+    async function completeOrder(orderNumber){ const r = await fetchData('completeorder',{orderNumber}); if(r?.success){ showToast('Order completed','success'); closeModal('orderDetailsModal'); loadSectionData('orders'); loadDashboardData(); } else showToast(r?.message||'Failed','error'); }
+    function sendOrderWhatsApp(){ 
+        const msg = document.getElementById('orderWhatsappMessage').value.trim(); 
+        const phone = cleanPhoneNumber(currentOrder?.phone); 
+        const address = currentOrder?.address || 'your address';
+        const finalMsg = msg.replace(/\{address\}/g, address);
+        if(phone && finalMsg) window.open(`https://wa.me/${phone}?text=${encodeURIComponent(finalMsg)}`,'_blank'); 
+    }
     function exportPhoneNumbers(){ window.open(`${WEB_APP_URL}?action=exportnumbers`,'_blank'); showToast('Export started','success'); }
-    function closeModal(id){ document.getElementById(id).classList.remove('active'); if(id==='productModal'){ document.getElementById('categoryCustomContainer').style.display='none'; } currentOrder=null; }
+    function closeModal(id){ document.getElementById(id).classList.remove('active'); if(id==='productModal'){ document.getElementById('categoryCustomContainer').style.display='none'; } currentOrder=null; currentOrderGroup=[]; }
     function switchTab(tabId){ document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active')); document.querySelector(`.nav-tab[data-tab="${tabId}"]`).classList.add('active'); document.querySelectorAll('.content-section').forEach(s=>s.classList.remove('active')); document.getElementById(tabId).classList.add('active'); if(tabId!=='dashboard') loadSectionData(tabId); }
     
     document.addEventListener('DOMContentLoaded', async () => {
@@ -1672,8 +1845,8 @@
         document.getElementById('showCompletedBtn').onclick = () => { currentOrderFilter='completed'; renderOrdersTable(); };
         document.getElementById('closeOrderModal').onclick = () => closeModal('orderDetailsModal');
         document.getElementById('sendOrderWhatsAppBtn').onclick = sendOrderWhatsApp;
-        document.querySelectorAll('#chatThreadModal .whatsapp-template-btn').forEach(b=>b.addEventListener('click',()=>{ const t=b.getAttribute('data-template'); const ta=document.getElementById('whatsappMessage'); if(t==='general') ta.value='Hi this is Richland Africa...'; else if(t==='followup') ta.value='Hello, this is Tari from Richland...'; else if(t==='feedback') ta.value='We value your feedback...'; else if(t==='custom') ta.value='Hello, Im reaching out...'; }));
-        document.querySelectorAll('#orderDetailsModal .whatsapp-template-btn').forEach(b=>b.addEventListener('click',()=>{ const t=b.getAttribute('data-template'); const ta=document.getElementById('orderWhatsappMessage'); const on=currentOrder?.orderNumber||''; if(t==='processing') ta.value=`Hi, order ${on} is being processed...`; else if(t==='ready') ta.value=`Order ${on} is ready for collection!`; else if(t==='delivery') ta.value=`Order ${on} is ready. Would you prefer delivery?`; else if(t==='custom') ta.value=`Regarding order ${on}, `; }));
+        document.querySelectorAll('#chatThreadModal .whatsapp-template-btn').forEach(b=>b.addEventListener('click',()=>{ const t=b.getAttribute('data-template'); const ta=document.getElementById('whatsappMessage'); if(t==='general') ta.value='Hi this is Richland Africa, reaching out based on an enquiry you made on our chatbot. How can we assist you further?'; else if(t==='followup') ta.value='Hello, this is Tari from Richland Africa following up on your chatbot enquiry. Do you need any help with our products?'; else if(t==='feedback') ta.value='We value your feedback! Could you please share your experience with our chatbot?'; else if(t==='custom') ta.value='Hello, Im reaching out regarding your recent interaction with our chatbot. How can we help you today?'; }));
+        document.querySelectorAll('#orderDetailsModal .whatsapp-template-btn').forEach(b=>b.addEventListener('click',()=>{ const t=b.getAttribute('data-template'); const ta=document.getElementById('orderWhatsappMessage'); const on=currentOrder?.orderNumber||''; const addr=currentOrder?.address||'your address'; if(t==='processing') ta.value=`Hi, order #${on} is being processed. We are delivering it to ${addr} shortly.`; else if(t==='ready') ta.value=`Great news! Order #${on} is ready. We are delivering it to ${addr} shortly.`; else if(t==='delivery') ta.value=`We are delivering your order #${on} to ${addr} shortly. Please ensure someone is available to receive it.`; else if(t==='custom') ta.value=`Regarding order #${on}, we are delivering to ${addr}. `; }));
         initCategoryHandlers();
         await loadDashboardData();
         if(window.location.hash) switchTab(window.location.hash.substring(1));
